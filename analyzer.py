@@ -1,8 +1,12 @@
 from pipelines import make_pipeline
+import matplotlib.pyplot as plt
 from credit_preprocessing import load_credit
+import numpy as np
+from preprocess_internet import load_internet
 from sklearn.metrics import classification_report
 from sklearn.model_selection import learning_curve
 from mushroom_preprocess import load_mushrooms
+from pulsar_preprocess import load_pulsar
 import pandas as pd
 import pickle
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, train_test_split
@@ -19,10 +23,11 @@ def load_spec(path):
 
 
 class Runner:
-    def __init__(self, name, spec_path):
+    def __init__(self, name, spec_path, exclude=[]):
         self.name = name
         self.spec = load_spec(spec_path)
         self.data = self.spec["data"]
+        self.excluded_models = exclude
         self.test_result_filepath = os.path.join(self.name, "test_results.csv")
 
     def prepare_datasets(self):
@@ -34,6 +39,10 @@ class Runner:
             X, y = load_mushrooms()
         elif self.data == "credit":
             X, y = load_credit()
+        elif self.data == "pulsar":
+            X, y = load_pulsar()
+        elif self.data == "internet":
+            X, y = load_internet()
         else:
             raise NotImplementedError(f"Data {self.data} not yet supported")
 
@@ -62,6 +71,7 @@ class Runner:
         self.prepare_datasets()
 
         for model, kwargs in self.spec["models"].items():
+            if model in self.excluded_models: continue
             param_grid = kwargs.get("param_grid", {})
             search_type = kwargs.get("search_type", None)
             self.run_model(model, param_grid, search_type=search_type)
@@ -110,10 +120,10 @@ class Runner:
         -------
         """
         if search_type == "grid":
-            tuner = GridSearchCV(pipe, param_grid, scoring=metric, cv=5)
+            tuner = GridSearchCV(pipe, param_grid, cv=5, return_train_score=True)
 
         elif search_type == "random":
-            tuner = RandomizedSearchCV(pipe, param_grid, scoring=metric, cv=5)
+            tuner = RandomizedSearchCV(pipe, param_grid, cv=5, return_train_score=True)
 
         tuner.fit(self.X_train, self.y_train)
         # TODO: Export results to report file
@@ -141,6 +151,7 @@ class Runner:
             "train_scores": train_scores.tolist(),
             "test_scores": test_scores.tolist(),
             "fit_times": fit_times.tolist(),
+
         }
         with open(
             os.path.join(self.name, f"{model}_learningcurve.json"), "w"
@@ -179,11 +190,78 @@ class Runner:
 class Analyzer:
     """Takes the results from the Runner and produces visualizations and reports based on the experiment."""
 
-    def __init__(self):
+    def __init__(self, experiment_name):
         """__init__"""
+        self.results_folder = experiment_name
+        self.files = [
+            os.path.join(experiment_name, x) for x in os.listdir(experiment_name)
+        ]
+
+    def _parse_model_name(self, result_file_path):
+        if "knn" in result_file_path:
+            model_name = "KNN"
+        elif "tree" in result_file_path:
+            model_name = "Decision Tree"
+        elif "svm" in result_file_path:
+            model_name = "SVM"
+        elif "boosting" in result_file_path:
+            model_name = "Gradient Boosting Classifier"
+        elif "neural" in result_file_path:
+            model_name = "Neural Network"
+
+        return model_name
 
     def generate_learning_curve_plots(self):
         """generate_learning_curve_plots"""
+        lr_results = [f for f in self.files if "learningcurve" in f]
+
+        for result_file in lr_results:
+            model_name = self._parse_model_name(result_file)
+
+            with open(result_file, "r") as f:
+                data = json.load(f)
+
+            fit_times = np.array(data["fit_times"])
+            train_scores = np.array(data["train_scores"])
+            test_scores = np.array(data["test_scores"])
+            train_sizes = np.array(data["train_sizes"])
+
+            mean_times = np.mean(fit_times, axis=1)
+            mean_trainscores = np.mean(train_scores, axis=1)
+            mean_testscores = np.mean(test_scores, axis=1)
+
+            std_trainscores = np.std(train_scores, axis=1)
+            std_testscores = np.std(test_scores, axis=1)
+
+            fig, ax = plt.subplots(1, 1)
+
+            train = ax.plot(
+                train_sizes, mean_trainscores, marker="o", label="Train Score"
+            )
+            test = ax.plot(train_sizes, mean_testscores, marker="o", label="Test Score")
+
+            ax.fill_between(
+                train_sizes,
+                mean_trainscores + std_trainscores,
+                mean_trainscores - std_trainscores,
+                alpha=0.5,
+            )
+            ax.fill_between(
+                train_sizes,
+                mean_testscores + std_testscores,
+                mean_testscores - std_testscores,
+                alpha=0.5,
+            )
+            ax.set_xlabel("# of Train Samples")
+            ax.set_ylabel("Score")
+            ax.set_title(f"{model_name} Learning Curve")
+            ax.legend()
+            ax.grid()
+
+            plt.savefig(
+                os.path.join(self.results_folder, f"{model_name} Learning Curve.png")
+            )
+            plt.close(fig)
 
     def generate_cv_plots(self):
         """generate_cv_plots"""
@@ -192,6 +270,12 @@ class Analyzer:
         """generate_classification_report_plots"""
 
 
-runner = Runner("credit", "specs/credit_spec.json")
+if __name__ == '__main__':
 
-runner.run()
+    runner1 = Runner("internet", "specs/internet_spec.json", exclude=['neural'])
+    runner2 = Runner('pulsar', "specs/pulsar_spec.json", exclude=['neural'])
+
+    print("Running online shopper retention")
+    runner1.run()
+    print("Running pulsar detection")
+    runner2.run() 
