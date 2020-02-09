@@ -22,14 +22,15 @@ if __name__ == '__main__':
         intention_runner = Runner('intention','specs/intention_spec.json')
         pulsar_runner = Runner('pulsar','specs/pulsar_spec.json')
 
-    intention_analyzer = Analyzer('intention')
-    pulsar_analyzer = Analyzer('pulsar')
 
     print("Running Customer Intention Experiments")
     intention_runner.run()
 
     print("Running Pulsar Detection Experiments")
     pulsar_runner.run()
+
+    intention_analyzer = Analyzer('intention')
+    pulsar_analyzer = Analyzer('pulsar')
 
     print("Generating Plots")
     intention_analyzer.generate_all_plots()
