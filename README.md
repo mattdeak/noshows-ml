@@ -1,10 +1,5 @@
 ### Environment Setup
-An easy way to set up the environment necessary to run the code is by using anaconda. Simply type:
-`conda install ...` (Complete)
-and activate the environment with
-`conda activate ...`
-
-Alternatively, you can pip install the requirements in the `requirements.txt` file. In this case, please ensure you are using python 3.6 or higher.
+Just `pip install -r requirements.txt`. Only tested on python version 3.7.
 
 
 ### How the Code Works
