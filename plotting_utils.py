@@ -472,9 +472,3 @@ def extract_best_worst_model_params(folder):
 
     return results
 
-
-p = extract_best_worst_model_params('pulsar')
-i = extract_best_worst_model_params('intention')
-        
-
-    
