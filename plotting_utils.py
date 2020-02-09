@@ -6,6 +6,7 @@ import json
 import matplotlib.pyplot as plt
 from matplotlib import ticker
 import seaborn as sns
+from collections import defaultdict
 
 GINI_TRAIN_COLOUR = "palegreen"
 ENTROPY_TRAIN_COLOUR = "lightblue"
@@ -150,7 +151,6 @@ def plot_knn_cv(data, outfile):
         color=GINI_TEST_COLOUR,
     )
 
-    ax.xaxis.set_major_locator(ticker.MultipleLocator())
 
     ax.legend()
 
@@ -283,8 +283,6 @@ def plot_svm_cv(data, outfile):
     plt.close(fig)
 
 def plot_mlp_cv(data, outfile):
-    data = pd.read_csv('intention/cvresults_neural.csv', index_col=0)
-
     arch1 = data[data.param_classify__hidden_layer_sizes == '[64, 64]']
     arch2 = data[data.param_classify__hidden_layer_sizes == '[128, 128]']
     arch3 = data[data.param_classify__hidden_layer_sizes == '[64, 64, 64]']
@@ -334,7 +332,13 @@ def plot_boosting_cv(data, outfile):
     train = data.pivot('DT Max Depth', 'Learning Rate', values='mean_train_score')
     test = data.pivot('DT Max Depth', 'Learning Rate', values='mean_test_score')
 
-    ax = sns.heatmap(train, annot=True, cmap='RdBu_r', vmin=0.5, vmax=1)
+    vmin_train = data['mean_train_score'].min()
+    vmax_train = data['mean_train_score'].max()
+    vmin_test = data['mean_test_score'].min()
+    vmax_test = data['mean_test_score'].max()
+
+
+    ax = sns.heatmap(train, annot=True, cmap='Blues', vmin=vmin_train, vmax=vmax_train, fmt='.4g')
     bottom, top = ax.get_ylim()
     ax.set_ylim(bottom + 0.5, top - 0.5)
     ax.set_title('Mean Accuracy of Learning Rate vs. DT Max Depth (Training Set)')
@@ -344,7 +348,7 @@ def plot_boosting_cv(data, outfile):
     plt.close()
 
 
-    ax = sns.heatmap(test, annot=True, cmap='RdBu_r', vmin=0.5, vmax=1)
+    ax = sns.heatmap(test, annot=True, cmap='Blues', vmin=vmin_test, vmax=vmax_test, fmt='.4g')
     bottom, top = ax.get_ylim()
     ax.set_ylim(bottom + 0.5, top - 0.5)
     ax.set_title('Mean Accuracy of Learning Rate vs. DT Max Depth (Validation Set)')
@@ -420,9 +424,8 @@ def aggregate_reports(result_folder):
         results[model]['Train Time'] = best_row.mean_fit_time.values[0]
         results[model]['Prediction Time'] = best_row.mean_score_time.values[0]
 
-    return pd.DataFrame(results)
+    return pd.DataFrame(results).round(4)
 
-df = pd.read_csv('intention/boosting_iter_curve.csv', index_col=0)
 
 def plot_boosting_iter_curve(data, outfile):
     fig, ax = plt.subplots(1, 1)
@@ -439,3 +442,39 @@ def plot_boosting_iter_curve(data, outfile):
     ax.legend()
     plt.savefig(outfile)
     plt.close(fig)
+
+def extract_best_worst_model_params(folder):
+
+    cvreports = [os.path.join(folder, f) for f in os.listdir(folder) if 'cvresults' in f]
+    results = defaultdict(dict)
+    for report in cvreports:
+        model = report.split('/')[1].split('_')[1][:-4]
+        df = pd.read_csv(report)
+
+        best_row = df[df['rank_test_score'] == 1]
+        worst_row = df[df['rank_test_score'] == df.rank_test_score.max()]
+        params = [c for c in df.columns if 'param' in c]
+        
+        def get_row_info(row, params):
+            r = {}
+            for param in params:
+                param_name = param.replace('param_classify__','')
+                r[param_name] = row[param].values[0]
+            r['train_acc'] = np.round(row['mean_train_score'].values[0], 4)
+            r['val_acc'] = np.round(row['mean_test_score'].values[0], 4)
+
+            return r
+
+        results[model]['best'] = get_row_info(best_row, params)
+        results[model]['worst'] = get_row_info(worst_row, params)
+
+
+
+    return results
+
+
+p = extract_best_worst_model_params('pulsar')
+i = extract_best_worst_model_params('intention')
+        
+
+    

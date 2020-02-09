@@ -208,13 +208,13 @@ if __name__ == "__main__":
     intention_runner = Runner(
         "intention",
         "specs/intention_spec.json",
-        exclude=["knn", "tree", "neural", "svm"],
+        exclude=["boosting", "tree", "neural", "svm"],
         just_overwrite=True,
     )
     pulsar_runner = Runner(
         "pulsar",
         "specs/pulsar_spec.json",
-        exclude=["knn", "tree", "neural", "svm"],
+        exclude=["boosting", "tree", "neural", "svm"],
         just_overwrite=True,
     )
 

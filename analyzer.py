@@ -8,13 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotting_utils as pu
-from credit_preprocessing import load_credit
 from plotting_utils import aggregate_reports
-from mushroom_preprocess import load_mushrooms
 from pipelines import make_pipeline
-from preprocess_internet import load_internet
-from preprocessing import load_noshows_preprocessed
-from pulsar_preprocess import load_pulsar
 from sklearn.metrics import classification_report
 from train_utils import generate_mlp_loss_curve
 from sklearn.model_selection import (
@@ -149,8 +144,10 @@ class Analyzer:
 
     def generate_boosting_iter_plot(self):
         f = os.path.join(self.results_folder, "boosting_iter_curve.csv")
-        data = pd.read_csv(f)
-        pu.plot_boosting_iter_curve(data, "Boosting Iter Curve.png")
+        data = pd.read_csv(f, index_col=0)
+
+        outpath = os.path.join(self.results_folder, "Boosting Iter Curve.png")
+        pu.plot_boosting_iter_curve(data,outpath)
 
 
 if __name__ == "__main__":
@@ -160,7 +157,7 @@ if __name__ == "__main__":
     analyzer.generate_all_plots()
 
     print(aggregate_reports("intention"))
-    print(aggregate_reports("intention"))
+    print(aggregate_reports("pulsar"))
 
 
 #     runner1 = Runner("internet", "specs/internet_spec.json", exclude=['neural'])
