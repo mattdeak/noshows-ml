@@ -4,14 +4,14 @@ from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from preprocessing import load_noshows_preprocessed
 
 MODELS = {
     "tree": DecisionTreeClassifier,
     "knn": KNeighborsClassifier,
-    "boosting": GradientBoostingClassifier,
+    "boosting": lambda: AdaBoostClassifier(DecisionTreeClassifier(max_depth=1)),
     "svm": SVC,
     "neural": MLPClassifier,
     'lr': LogisticRegression
