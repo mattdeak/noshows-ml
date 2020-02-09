@@ -18,6 +18,7 @@ from pipelines import make_pipeline
 from train_utils import generate_mlp_loss_curve, generate_boosting_iter_curve
 from data_utils import load_pulsar, load_intention
 
+np.random.seed(0) # For replicability
 
 def load_spec(path):
     with open(path, "r") as specfile:
@@ -208,15 +209,15 @@ if __name__ == "__main__":
     intention_runner = Runner(
         "intention",
         "specs/intention_spec.json",
-        exclude=["boosting", "tree", "neural", "svm"],
-        just_overwrite=True,
     )
+
     pulsar_runner = Runner(
         "pulsar",
         "specs/pulsar_spec.json",
-        exclude=["boosting", "tree", "neural", "svm"],
-        just_overwrite=True,
     )
 
+    print("Running Experiments on Intention Dataset")
     intention_runner.run()
+
+    print("running experiments on pulsar dataset")
     pulsar_runner.run()
