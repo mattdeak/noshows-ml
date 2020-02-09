@@ -9,7 +9,7 @@ import argparse
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fast',default=False)
+    parser.add_argument('--fast', '-f', action='store_true')
 
     args = parser.parse_args()
     if args.fast:
