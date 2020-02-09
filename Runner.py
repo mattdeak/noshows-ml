@@ -15,7 +15,7 @@ from sklearn.model_selection import (
 )
 
 from pipelines import make_pipeline
-from train_utils import generate_mlp_loss_curve
+from train_utils import generate_mlp_loss_curve, generate_boosting_iter_curve
 from data_utils import load_pulsar, load_intention
 
 
@@ -156,6 +156,10 @@ class Runner:
                 os.path.join(self.name, "neural_epoch_learningcurve.csv")
             )
 
+        elif model == 'boosting': # AdaBoost learning curve by iteration (n estimators)
+            iter_lr_curve = generate_boosting_iter_curve(pipe, self.X_train, self.y_train, self.X_test, self.y_test)
+            iter_lr_curve.to_csv(os.path.join(self.name, "boosting_iter_curve.csv"))
+
         train_sizes, train_scores, test_scores, fit_times, _ = learning_curve(
             pipe, self.X_train, self.y_train, cv=5, return_times=True
         )
@@ -200,16 +204,17 @@ class Runner:
 
 
 if __name__ == "__main__":
+    # Just running boosting
     intention_runner = Runner(
         "intention",
         "specs/intention_spec.json",
-        exclude=["knn", "tree", "boosting", "svm"],
+        exclude=["knn", "tree", "neural", "svm"],
         just_overwrite=True,
     )
     pulsar_runner = Runner(
         "pulsar",
         "specs/pulsar_spec.json",
-        exclude=["knn", "tree", "boosting", "svm"],
+        exclude=["knn", "tree", "neural", "svm"],
         just_overwrite=True,
     )
 

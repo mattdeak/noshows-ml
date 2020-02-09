@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import plotting_utils as pu
 from credit_preprocessing import load_credit
+from plotting_utils import aggregate_reports
 from mushroom_preprocess import load_mushrooms
 from pipelines import make_pipeline
 from preprocess_internet import load_internet
@@ -16,8 +17,12 @@ from preprocessing import load_noshows_preprocessed
 from pulsar_preprocess import load_pulsar
 from sklearn.metrics import classification_report
 from train_utils import generate_mlp_loss_curve
-from sklearn.model_selection import (GridSearchCV, RandomizedSearchCV,
-                                     learning_curve, train_test_split)
+from sklearn.model_selection import (
+    GridSearchCV,
+    RandomizedSearchCV,
+    learning_curve,
+    train_test_split,
+)
 
 
 def load_spec(path):
@@ -44,17 +49,30 @@ class Analyzer:
         elif "svm" in result_file_path:
             model_name = "SVM"
         elif "boosting" in result_file_path:
-            model_name = "Gradient Boosting Classifier"
+            model_name = "AdaBoost"
         elif "neural" in result_file_path:
             model_name = "Neural Network"
 
         return model_name
+
+    def generate_all_plots(self):
+        self.generate_learning_curve_plots()
+        self.generate_cv_plots()
+        self.generate_boosting_iter_plot()
 
     def generate_learning_curve_plots(self):
         """generate_learning_curve_plots"""
         lr_results = [f for f in self.files if "learningcurve" in f]
 
         for result_file in lr_results:
+
+            if "neural_epoch" in result_file:
+                data = pd.read_csv(result_file, index_col=0)
+                pu.plot_mlp_loss_curve(
+                    data, os.path.join(self.results_folder, "MLP Loss Curve.png")
+                )
+                continue
+
             model_name = self._parse_model_name(result_file)
 
             with open(result_file, "r") as f:
@@ -77,7 +95,9 @@ class Analyzer:
             train = ax.plot(
                 train_sizes, mean_trainscores, marker="o", label="Train Score"
             )
-            test = ax.plot(train_sizes, mean_testscores, marker="o", label="Validation Score")
+            test = ax.plot(
+                train_sizes, mean_testscores, marker="o", label="Validation Score"
+            )
 
             ax.fill_between(
                 train_sizes,
@@ -107,39 +127,40 @@ class Analyzer:
         """generate_cv_plots"""
         cv_results = [f for f in self.files if "cvresults" in f]
         for results_file in cv_results:
-            
+
             data = pd.read_csv(results_file)
             model_name = self._parse_model_name(results_file)
 
-            filename = f'{model_name} CV Results.png'
+            filename = f"{model_name} CV Results.png"
             outfile = os.path.join(self.results_folder, filename)
-            if model_name == 'KNN':
+            if model_name == "KNN":
                 pu.plot_knn_cv(data, outfile)
-            elif model_name == 'Decision Tree':
+            elif model_name == "Decision Tree":
                 pu.plot_tree_cv(data, outfile)
-            elif model_name == 'SVM':
+            elif model_name == "SVM":
                 pu.plot_svm_cv(data, outfile)
-            elif model_name == 'Neural Network':
+            elif model_name == "Neural Network":
                 pu.plot_mlp_cv(data, outfile)
-            elif model_name == 'Boosting':
-                pu.plot_boosting_cv()
+            elif model_name == "AdaBoost":
+                pu.plot_boosting_cv(data, outfile)
             else:
-                print(f'Model {model_name} not supported yet')
+                print(f"Model {model_name} not supported yet")
                 continue
 
+    def generate_boosting_iter_plot(self):
+        f = os.path.join(self.results_folder, "boosting_iter_curve.csv")
+        data = pd.read_csv(f)
+        pu.plot_boosting_iter_curve(data, "Boosting Iter Curve.png")
 
-    def generate_classification_report_plots(self):
-        """generate_classification_report_plots"""
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     analyzer = Analyzer("pulsar")
-    analyzer.generate_cv_plots()
-    analyzer.generate_learning_curve_plots()
-    analyzer = Analyzer("internet")
-    analyzer.generate_cv_plots()
-    analyzer.generate_learning_curve_plots()
+    analyzer.generate_all_plots()
+    analyzer = Analyzer("intention")
+    analyzer.generate_all_plots()
 
+    print(aggregate_reports("intention"))
+    print(aggregate_reports("intention"))
 
 
 #     runner1 = Runner("internet", "specs/internet_spec.json", exclude=['neural'])
@@ -148,4 +169,4 @@ if __name__ == '__main__':
 #     print("Running online shopper retention")
 #     runner1.run()
 #     print("Running pulsar detection")
-#     runner2.run() 
+#     runner2.run()

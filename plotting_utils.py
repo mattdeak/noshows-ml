@@ -1,4 +1,5 @@
 
+import os
 import pandas as pd
 import numpy as np
 import json
@@ -23,6 +24,12 @@ NEURAL_A_COLOUR = "green"
 NEURAL_B_COLOUR = "mediumblue"
 NEURAL_C_COLOUR = "goldenrod"
 NEURAL_D_COLOUR = "darkviolet"
+
+LOSS_TRAIN = 'palegreen'
+LOSS_VAL = 'darkgreen'
+ACC_TRAIN = 'lightblue'
+ACC_VAL = 'darkblue'
+
 
 
 def plot_tree_cv(data, outfile):
@@ -319,12 +326,116 @@ def plot_mlp_cv(data, outfile):
     ax.set_title("Neural Network Performance across Hyperparameter Values")
     ax.grid()
     plt.savefig(outfile)
+    plt.close(fig)
 
 def plot_boosting_cv(data, outfile):
-    pass
+    data['DT Max Depth'] = data['param_classify__base_estimator__max_depth']
+    data['Learning Rate'] = data['param_classify__learning_rate']
+    train = data.pivot('DT Max Depth', 'Learning Rate', values='mean_train_score')
+    test = data.pivot('DT Max Depth', 'Learning Rate', values='mean_test_score')
+
+    ax = sns.heatmap(train, annot=True, cmap='RdBu_r', vmin=0.5, vmax=1)
+    bottom, top = ax.get_ylim()
+    ax.set_ylim(bottom + 0.5, top - 0.5)
+    ax.set_title('Mean Accuracy of Learning Rate vs. DT Max Depth (Training Set)')
+
+    modified_outfile = outfile[:-4] # Without the .png
+    plt.savefig(f'{modified_outfile}(Train).png')
+    plt.close()
+
+
+    ax = sns.heatmap(test, annot=True, cmap='RdBu_r', vmin=0.5, vmax=1)
+    bottom, top = ax.get_ylim()
+    ax.set_ylim(bottom + 0.5, top - 0.5)
+    ax.set_title('Mean Accuracy of Learning Rate vs. DT Max Depth (Validation Set)')
+
+
+    plt.savefig(f'{modified_outfile}(Validation).png')
+    plt.close()
 
 def plot_mlp_loss_curve(data, outfile):
-    pass
+
+    fig, ax = plt.subplots(1, 1)
+    ax2 = ax.twinx()
+
+    xs = np.arange(data.shape[0])
+    lines = []
+    lines += ax.plot(xs, data['Train Log-Loss'], c=LOSS_TRAIN, label='Training Log-Loss')
+    lines += ax.plot(xs, data['Validation Log-Loss'], c=LOSS_VAL, label='Validation Log-Loss')
+    lines += ax2.plot(xs, data['Train Score'], c=ACC_TRAIN, label='Training Accuracy')
+    lines += ax2.plot(xs, data['Validation Score'], c=ACC_VAL, label='Validation Accuracy')
+
+    labels = [l.get_label() for l in lines]
+    ax.set_xlabel('Epochs')
+    ax.set_ylabel('Log-Loss')
+    ax2.set_ylabel('Accuracy Ratio')
+    ax2.legend(lines, labels, loc='lower_left')
+    ax.set_ylim(bottom=0)
+    ax2.set_ylim((0.8, 1))
+    ax.set_xlim((xs[0], xs[-1]))
+    ax.set_title('Neural Net Loss/Accuracy vs. Epochs Trained')
+    plt.savefig(outfile)
+    plt.close(fig)
 
 
-data = pd.read_csv('intention/cvresults_neural.csv', index_col=0)
+def aggregate_reports(result_folder):
+    """aggregate_reports
+
+    Parameters
+    ----------
+
+    results_folder : folder containing experiment data
+
+    Returns A dataframe containing Precision, Recall, Accuracy, F1, Train Time and Prediction Time for each model
+    -------
+    """
+    results = {}
+    cr_reports = [os.path.join(result_folder, f) for f in os.listdir(result_folder) if 'classificationreport_test' in f]
+    for report in cr_reports:
+        model = report.split('/')[1].split('_')[0]
+
+        with open(report, 'r') as rf:
+            model_dict_raw = json.load(rf)
+
+        md = {}
+        md['accuracy'] = model_dict_raw['accuracy']
+        try:
+            md['precision'] = model_dict_raw['True']['precision']
+            md['recall'] = model_dict_raw['True']['recall']
+            md['f1-score'] = model_dict_raw['True']['f1-score']
+        except KeyError: # it's 1 instead of True
+            md['precision'] = model_dict_raw['1']['precision']
+            md['recall'] = model_dict_raw['1']['recall']
+            md['f1-score'] = model_dict_raw['1']['f1-score']
+
+        results[model] = md
+
+    gsearch_reports = [os.path.join(result_folder, f) for f in os.listdir(result_folder) if 'cvresults' in f] 
+    for report in gsearch_reports:
+        model = report.split('/')[1].split('_')[1][:-4]
+        df = pd.read_csv(report)
+
+        best_row = df[df.rank_test_score == 1]
+
+        results[model]['Train Time'] = best_row.mean_fit_time.values[0]
+        results[model]['Prediction Time'] = best_row.mean_score_time.values[0]
+
+    return pd.DataFrame(results)
+
+df = pd.read_csv('intention/boosting_iter_curve.csv', index_col=0)
+
+def plot_boosting_iter_curve(data, outfile):
+    fig, ax = plt.subplots(1, 1)
+
+    ax.plot(data.Iterations, data['Train Score'], label='Training', c=ACC_TRAIN)
+    ax.plot(data.Iterations, data['Validation Scores'], label='Validation', c=ACC_VAL)
+
+    ax.set_ylim((0.8, 1.0))
+    ax.set_xlim((data.Iterations.min(), data.Iterations.max()))
+
+    ax.set_xlabel('Number of Iterations')
+    ax.set_ylabel('Accuracy Ratio')
+    ax.set_title('AdaBoost Accuracy over Iterations')
+    ax.legend()
+    plt.savefig(outfile)
+    plt.close(fig)
