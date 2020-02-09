@@ -3,10 +3,24 @@ from analyzer import Analyzer
 import numpy as np
 from plotting_utils import aggregate_reports
 
+import argparse
+
+
 
 if __name__ == '__main__':
-    intention_runner = Runner('intention','specs/intention_spec.json')
-    pulsar_runner = Runner('pulsar','specs/pulsar_spec.json')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--fast',default=False)
+
+    args = parser.parse_args()
+    if args.fast:
+        print("Running Experiments with Fast Flag")
+        print("Neural Network and SVM Data will not be recorded")
+        intention_runner = Runner('intention','specs/intention_spec.json', exclude=['neural','svm'])
+        pulsar_runner = Runner('pulsar','specs/pulsar_spec.json', exclude=['neural','svm'])
+
+    else:
+        intention_runner = Runner('intention','specs/intention_spec.json')
+        pulsar_runner = Runner('pulsar','specs/pulsar_spec.json')
 
     intention_analyzer = Analyzer('intention')
     pulsar_analyzer = Analyzer('pulsar')
